@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { GoogleIcon } from "@/components/ui/GoogleIcon";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,11 +54,18 @@ export default function LoginPage() {
   }
 
   async function handleGoogleLogin() {
+    setError(null);
     setLoading("google");
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/` },
     });
+    // On success the browser navigates away to Google immediately, so we only
+    // ever reach here if the call itself failed (e.g. provider not enabled).
+    if (error) {
+      setLoading(null);
+      setError("Gagal masuk dengan Google. Coba lagi ya!");
+    }
   }
 
   return (
@@ -88,7 +96,6 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
           <Button type="submit" disabled={loading !== null} className="w-full">
             {loading === "password" ? "Memproses..." : "Masuk →"}
           </Button>
@@ -116,8 +123,16 @@ export default function LoginPage() {
         disabled={loading !== null}
         className="w-full"
       >
-        🔵 Lanjutkan dengan Google
+        {loading === "google" ? (
+          "Menghubungkan..."
+        ) : (
+          <>
+            <GoogleIcon /> Lanjutkan dengan Google
+          </>
+        )}
       </Button>
+
+      {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
       <p className="text-sm text-center opacity-70">
         Belum punya akun?{" "}
