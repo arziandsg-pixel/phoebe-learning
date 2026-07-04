@@ -1,26 +1,213 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --pink: #f472b6;
+  --pink2: #ec4899;
+  --pinks: #f9a8d4;
+  --cyan: #67e8f9;
+  --lav: #c4b5fd;
+  --gold: #fbbf24;
+  --green: #4ade80;
+  --bg: #faf7ff;
+  --ink: #1a1230;
+
+  --surface: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.6);
+  --border-glass: rgba(255, 255, 255, 0.5);
+}
+
+.dark {
+  --bg: #120c22;
+  --ink: #f3effc;
+  --surface: #1e1636;
+  --surface-glass: rgba(30, 22, 54, 0.55);
+  --border-glass: rgba(196, 181, 253, 0.15);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-pink: var(--pink);
+  --color-pink2: var(--pink2);
+  --color-pinks: var(--pinks);
+  --color-cyan: var(--cyan);
+  --color-lav: var(--lav);
+  --color-gold: var(--gold);
+  --color-green: var(--green);
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-surface: var(--surface);
+  --color-surface-glass: var(--surface-glass);
+  --color-border-glass: var(--border-glass);
+
+  --font-heading: var(--font-outfit);
+  --font-body: var(--font-nunito);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), sans-serif;
+}
+
+/* ---------- Aurora background ---------- */
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.aurora-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.5;
+  animation: aurora-float 18s ease-in-out infinite;
+}
+
+.dark .aurora-orb {
+  opacity: 0.35;
+}
+
+.aurora-orb-pink {
+  width: 32rem;
+  height: 32rem;
+  top: -10rem;
+  left: -8rem;
+  background: var(--pink);
+  animation-delay: 0s;
+}
+
+.aurora-orb-cyan {
+  width: 28rem;
+  height: 28rem;
+  top: 10rem;
+  right: -10rem;
+  background: var(--cyan);
+  animation-delay: -6s;
+}
+
+.aurora-orb-lav {
+  width: 30rem;
+  height: 30rem;
+  bottom: -12rem;
+  left: 20%;
+  background: var(--lav);
+  animation-delay: -12s;
+}
+
+@keyframes aurora-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(3rem, 2rem) scale(1.1); }
+  66% { transform: translate(-2rem, 3rem) scale(0.95); }
+}
+
+/* ---------- Glassmorphism card ---------- */
+.glass-card {
+  background: var(--surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.12);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.18);
+}
+
+/* ---------- Page fade-in ---------- */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-fade-in {
+  animation: fade-in-up 0.4s ease both;
+}
+
+/* ---------- Phoebe bobbing ---------- */
+@keyframes phoebe-bob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-14px) rotate(1deg); }
+}
+
+.phoebe-bob {
+  animation: phoebe-bob 3.2s ease-in-out infinite;
+}
+
+/* ---------- Level pulse ---------- */
+@keyframes level-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.5); }
+  50% { box-shadow: 0 0 0 10px rgba(244, 114, 182, 0); }
+}
+
+.level-pulse {
+  animation: level-pulse 2s ease-in-out infinite;
+}
+
+/* ---------- Typing indicator ---------- */
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+.typing-dot {
+  animation: typing-bounce 1s ease-in-out infinite;
+}
+
+/* ---------- 3D flashcard flip ---------- */
+.flip-scene {
+  perspective: 1200px;
+}
+
+.flip-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.flip-card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-face-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--lav);
+  border-radius: 8px;
 }
