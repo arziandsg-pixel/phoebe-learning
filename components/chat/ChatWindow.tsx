@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useProfile } from "@/contexts/ProfileContext";
+import { createClient } from "@/lib/supabase/client";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import type { ChatMessage } from "@/types";
@@ -13,39 +14,102 @@ const SUGGESTIONS = [
   "💬 Koreksi kalimatku: Je suis faim",
 ];
 
+// How many recent turns to send to Gemini as context — the full history is
+// still shown in the UI, but capping this keeps token usage predictable.
+const HISTORY_WINDOW = 20;
+
 function makeId() {
   return Math.random().toString(36).slice(2);
 }
 
 export function ChatWindow() {
-  const { profile, addXp, incrementChatCount } = useProfile();
+  const { user, profile, addXp, incrementChatCount } = useProfile();
+  const supabase = createClient();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let active = true;
+
+    async function loadHistory() {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("messages")
+        .select("id, role, content, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(200);
+
+      if (!active) return;
+
+      if (!error && data) {
+        setMessages(
+          data.map((row) => ({
+            id: row.id,
+            role: row.role as ChatMessage["role"],
+            text: row.content,
+            createdAt: new Date(row.created_at).getTime(),
+          }))
+        );
+      }
+
+      setHistoryLoaded(true);
+    }
+
+    loadHistory();
+
+    return () => {
+      active = false;
+    };
+  }, [user, supabase]);
+
+  useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
+
+  async function saveMessage(role: ChatMessage["role"], text: string) {
+    if (!user) return null;
+    const { data } = await supabase
+      .from("messages")
+      .insert({ user_id: user.id, role, content: text })
+      .select("id, created_at")
+      .single();
+    return data;
+  }
 
   async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
 
+    const localId = makeId();
     const userMessage: ChatMessage = {
-      id: makeId(),
+      id: localId,
       role: "user",
       text: trimmed,
       createdAt: Date.now(),
     };
 
-    const history = messages.map((m) => ({ role: m.role, text: m.text }));
+    const history = messages
+      .slice(-HISTORY_WINDOW)
+      .map((m) => ({ role: m.role, text: m.text }));
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
     addXp(5);
     incrementChatCount();
+
+    saveMessage("user", trimmed).then((saved) => {
+      if (!saved) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === localId ? { ...m, id: saved.id } : m))
+      );
+    });
 
     try {
       const res = await fetch("/api/chat", {
@@ -54,36 +118,34 @@ export function ChatWindow() {
         body: JSON.stringify({ message: trimmed, history }),
       });
       const data = await res.json();
+      const replyText = data.text ?? data.error ?? "Maaf, terjadi kesalahan.";
 
       setMessages((prev) => [
         ...prev,
-        {
-          id: makeId(),
-          role: "model",
-          text: data.text ?? data.error ?? "Maaf, terjadi kesalahan.",
-          createdAt: Date.now(),
-        },
+        { id: makeId(), role: "model", text: replyText, createdAt: Date.now() },
       ]);
+      saveMessage("model", replyText);
     } catch {
+      const replyText = "Aduh, koneksi Phoebe terputus. Coba lagi ya! 🎌";
       setMessages((prev) => [
         ...prev,
-        {
-          id: makeId(),
-          role: "model",
-          text: "Aduh, koneksi Phoebe terputus. Coba lagi ya! 🎌",
-          createdAt: Date.now(),
-        },
+        { id: makeId(), role: "model", text: replyText, createdAt: Date.now() },
       ]);
+      saveMessage("model", replyText);
     } finally {
       setLoading(false);
     }
   }
 
-  const showIntro = messages.length === 0;
+  const showIntro = historyLoaded && messages.length === 0;
 
   return (
     <div className="glass-card flex flex-col h-[calc(100vh-180px)]">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+        {!historyLoaded && (
+          <p className="text-xs text-center opacity-50 py-4">Memuat riwayat obrolan...</p>
+        )}
+
         {showIntro && (
           <div className="flex flex-col gap-3">
             <MessageBubble
